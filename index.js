@@ -12,16 +12,16 @@ const header = {
     'Connection': 'keep-alive',
 }
 
-const cookies = {}
+let cookies = {}
 
-const url = 'https://qr.m.jd.com/show'
+const qrUrl = 'https://qr.m.jd.com/show'
 
 console.log('  -------------------------------------')
 console.log('                请求扫码')
-console.log('  -------------------------------------')
+console.log('-------------------------------------')
 // 请求扫码
 request
-    .get(url)
+    .get(qrUrl)
     .set(header)
     .query({
         appid: 133,
@@ -29,8 +29,66 @@ request
         t: new Date().getTime()
     })
     .end((err, res) => {
+        cookies = cookieParser(res.header['set-cookie'])
+        const cookieData = res.header['set-cookie'];
         const image_file = res.body
         fs.writeFile("./qr.png", image_file, "binary", err => {
             os.exec('open ./qr.png')
+
+            // 监听扫码结果
+            let tryCount = 100
+            let isOk = false
+            const scanUrl = 'https://qr.m.jd.com/check'
+            setInterval(() => {
+                const callback = {}
+                let name;
+                callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => console.log(`------${data.msg}${data.code}`)
+                request
+                    .get(scanUrl)
+                    .set(header)
+                    .set({
+                        Host: 'qr.m.jd.com',
+                        Referer: 'https://passport.jd.com/new/login.aspx'
+                    })
+                    .set('Cookie', cookieData.join(';'))
+                    .query({
+                        callback: name,
+                        appid: 133,
+                        token: cookies['wlfstk_smdl'],
+                        _: new Date().getTime()
+                    })
+                    .end((err, res) => {
+                        eval('callback.' + res.text)
+                    })
+
+
+            }, 1000)
         })
     })
+
+
+
+
+
+function cookieParser(cookies) {
+    const result = {}
+    cookies.forEach(cookie => {
+        const temp = cookie.split(';')
+        temp.forEach(val => {
+            const flag = val.split('=')
+            result[flag[0]] = flag.length === 1 ? '' : flag[1]
+        })
+    })
+    return result;
+}
+
+function getRandomInt(min, max) {
+    min = Math.ceil(min)
+    max = Math.floor(max)
+    return Math.floor(Math.random() * (max - min)) + min
+}
+
+function jsonpParser(jsonp) {
+    const result = {}
+
+}
