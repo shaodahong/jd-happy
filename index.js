@@ -16,9 +16,9 @@ let cookies = {}
 
 const qrUrl = 'https://qr.m.jd.com/show'
 
-console.log('  -------------------------------------')
+console.log('   -------------------------------------   ')
 console.log('                请求扫码')
-console.log('-------------------------------------')
+console.log('   -------------------------------------   ')
 // 请求扫码
 request
     .get(qrUrl)
@@ -39,10 +39,18 @@ request
             let tryCount = 100
             let isOk = false
             const scanUrl = 'https://qr.m.jd.com/check'
-            setInterval(() => {
+           const timer = setInterval(() => {
                 const callback = {}
                 let name;
-                callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => console.log(`------${data.msg}${data.code}`)
+                callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
+                    if (data.code === 200) {
+                        console.log(`   登录成功`)
+                        clearInterval(timer)
+                        return
+                    }
+                    console.log(`   ${data.msg}`)
+                }
+
                 request
                     .get(scanUrl)
                     .set(header)
