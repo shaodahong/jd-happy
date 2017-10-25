@@ -5,7 +5,7 @@
 [![GitHub last commit](https://img.shields.io/github/last-commit/google/skia.svg)](https://github.com/shaodahong/jd-happy)
 [![node](https://img.shields.io/node/v/passport.svg)](https://github.com/shaodahong/jd-happy)
 
-### 说明
+### 前言
 
 监控京东商品到货
 
@@ -24,7 +24,7 @@
 登录成功
 ```
 
-### 使用方法
+### 使用
 
 ```bash
 npm install
@@ -32,10 +32,8 @@ npm install
 
 ```
 npm run start
-```
 
 or
 
-```
 node index.js
 ```
