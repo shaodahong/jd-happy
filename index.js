@@ -5,8 +5,6 @@ const fs = require('fs')
 const os = require('shelljs')
 const opn = require('opn')
 
-let cookies = {}
-
 const defaultInfo = {
     header: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36',
@@ -15,6 +13,10 @@ const defaultInfo = {
         'Accept-Language': 'zh-CN,zh;q=0.8',
         'Connection': 'keep-alive',
     },
+    qrUrl: 'https://qr.m.jd.com/show',
+    scanUrl: 'https://qr.m.jd.com/check',
+    cookies: null,
+    cookieData: null,
     getStockState(stockState) {
         switch (stockState) {
             case 33:
@@ -25,69 +27,101 @@ const defaultInfo = {
     }
 }
 
-const qrUrl = 'https://qr.m.jd.com/show'
-
 console.log('   -------------------------------------   ')
 console.log('                请求扫码')
 console.log('   -------------------------------------   ')
+
+
+// requestScan().then(() => {
+//     return listenScan()
+// }).then(val => {
+//     console.log(val)
+// })
+
+
 // 请求扫码
-request
-    .get(qrUrl)
-    .set(defaultInfo.header)
-    .query({
-        appid: 133,
-        size: 147,
-        t: new Date().getTime()
+function requestScan() {
+    return new Promise((resolve, reject) => {
+        request
+            .get(defaultInfo.qrUrl)
+            .set(defaultInfo.header)
+            .query({
+                appid: 133,
+                size: 147,
+                t: new Date().getTime()
+            })
+            .end((err, res) => {
+                defaultInfo.cookies = cookieParser(res.header['set-cookie'])
+                defaultInfo.cookieData = res.header['set-cookie'];
+                const image_file = res.body
+                fs.writeFile("./qr.png", image_file, "binary", err => {
+                    opn('qr.png')
+                    resolve()
+                })
+            })
     })
-    .end((err, res) => {
-        cookies = cookieParser(res.header['set-cookie'])
-        const cookieData = res.header['set-cookie'];
-        const image_file = res.body
-        fs.writeFile("./qr.png", image_file, "binary", err => {
-            opn('qr.png')
+}
 
-            // 监听扫码结果
-            let tryCount = 100
-            let isOk = false
-            const scanUrl = 'https://qr.m.jd.com/check'
-            const timer = setInterval(() => {
-                const callback = {}
-                let name;
-                callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
-                    if (data.code === 200) {
-                        console.log(`   登录成功`)
-                        clearInterval(timer)
-                        return
-                    }
-                    console.log(`   ${data.msg}`)
+function listenScan() {
+    return new Promise((resolve, reject) => {
+        // 监听扫码结果
+        const timer = setInterval(() => {
+            const callback = {}
+            let name;
+            callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
+                if (data.code === 200) {
+                    clearInterval(timer)
+                    resolve(`   登录成功`)
+                    return
                 }
+                console.log(`   ${data.msg}`)
+            }
 
-                request
-                    .get(scanUrl)
-                    .set(defaultInfo.header)
-                    .set({
-                        Host: 'qr.m.jd.com',
-                        Referer: 'https://passport.jd.com/new/login.aspx'
-                    })
-                    .set('Cookie', cookieData.join(';'))
-                    .query({
-                        callback: name,
-                        appid: 133,
-                        token: cookies['wlfstk_smdl'],
-                        _: new Date().getTime()
-                    })
-                    .end((err, res) => {
-                        eval('callback.' + res.text)
-                    })
+            request
+                .get(defaultInfo.scanUrl)
+                .set(defaultInfo.header)
+                .set({
+                    Host: 'qr.m.jd.com',
+                    Referer: 'https://passport.jd.com/new/login.aspx'
+                })
+                .set('Cookie', defaultInfo.cookieData.join(';'))
+                .query({
+                    callback: name,
+                    appid: 133,
+                    token: defaultInfo.cookies['wlfstk_smdl'],
+                    _: new Date().getTime()
+                })
+                .end((err, res) => {
+                    eval('callback.' + res.text)
+                })
 
 
-            }, 1000)
-        })
+        }, 1000)
     })
+}
+
+
 
 function goodInfo(areaId, stockId) {
+    const data = {
+        areaId: areaId || '2_2830_51810_0',
+        stockId: stockId || 5008395
+    }
+
+    const stockLink = `http://item.jd.com/${data.stockId}.html`
+
+    request
+        .get(stockLink)
+        .end((err, res) => {
+            const tag = $.load(res.text, {decodeEntities: false})
+
+            const name = tag('.sku-name').text()
+            console.log(name)
+        })
 
 }
+
+goodInfo()
 
 function cookieParser(cookies) {
     const result = {}
