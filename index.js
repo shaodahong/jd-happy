@@ -3,16 +3,27 @@ const $ = require('cheerio')
 const request = require('superagent')
 const fs = require('fs')
 const os = require('shelljs')
-
-const header = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36',
-    'ContentType': 'text/html; charset=utf-8',
-    'Accept-Encoding': 'gzip, deflate, sdch',
-    'Accept-Language': 'zh-CN,zh;q=0.8',
-    'Connection': 'keep-alive',
-}
+const opn = require('opn')
 
 let cookies = {}
+
+const defaultInfo = {
+    header: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36',
+        'ContentType': 'text/html; charset=utf-8',
+        'Accept-Encoding': 'gzip, deflate, sdch',
+        'Accept-Language': 'zh-CN,zh;q=0.8',
+        'Connection': 'keep-alive',
+    },
+    getStockState(stockState) {
+        switch (stockState) {
+            case 33:
+                return '有货'
+            case 34:
+                return '无货'
+        }
+    }
+}
 
 const qrUrl = 'https://qr.m.jd.com/show'
 
@@ -22,7 +33,7 @@ console.log('   -------------------------------------   ')
 // 请求扫码
 request
     .get(qrUrl)
-    .set(header)
+    .set(defaultInfo.header)
     .query({
         appid: 133,
         size: 147,
@@ -33,13 +44,13 @@ request
         const cookieData = res.header['set-cookie'];
         const image_file = res.body
         fs.writeFile("./qr.png", image_file, "binary", err => {
-            os.exec('open ./qr.png')
+            opn('qr.png')
 
             // 监听扫码结果
             let tryCount = 100
             let isOk = false
             const scanUrl = 'https://qr.m.jd.com/check'
-           const timer = setInterval(() => {
+            const timer = setInterval(() => {
                 const callback = {}
                 let name;
                 callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
@@ -53,7 +64,7 @@ request
 
                 request
                     .get(scanUrl)
-                    .set(header)
+                    .set(defaultInfo.header)
                     .set({
                         Host: 'qr.m.jd.com',
                         Referer: 'https://passport.jd.com/new/login.aspx'
@@ -74,9 +85,9 @@ request
         })
     })
 
+function goodInfo(areaId, stockId) {
 
-
-
+}
 
 function cookieParser(cookies) {
     const result = {}
@@ -98,5 +109,4 @@ function getRandomInt(min, max) {
 
 function jsonpParser(jsonp) {
     const result = {}
-
 }
