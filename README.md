@@ -28,12 +28,6 @@
 
 ```bash
 npm install
-```
-
-```
-npm run start
-
-or
 
 node index.js
 ```

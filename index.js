@@ -1,3 +1,21 @@
+const args = require('yargs')
+    .alias('h', 'help')
+    .option('a', {
+        alias: 'area',
+        demand: true,
+        describe: '地区编号',
+    })
+    .option('g', {
+        alias: 'good',
+        demand: true,
+        describe: '商品编号',
+    })
+    .usage('Usage: node index.js -a 地区编号 -g 商品编号')
+    .example('node index.js -a 2_2830_51810_0 -g 5008395')
+    .argv;
+
+
+
 const $ = require('cheerio')
 const request = require('axios')
 const fs = require('fs')
@@ -8,7 +26,6 @@ const defaultInfo = {
     header: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36',
         'Content-Type': 'text/plain;charset=utf-8',
-        // 'accept':'image/webp,image/apng,image/*,*/*;q=0.8',
         'Accept-Encoding': 'gzip, deflate, br',
         'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.6,en;q=0.4,en-US;q=0.2',
         'Connection': 'keep-alive',
@@ -18,21 +35,16 @@ const defaultInfo = {
     loginUrl: 'https://passport.jd.com/uc/qrCodeTicketValidation',
     cookies: null,
     cookieData: null,
-    getStockState(stockState) {
-        switch (stockState) {
-            case 33:
-                return '有货'
-            case 34:
-                return '无货'
-        }
-    }
+    areaId: args.a,
+    goodId: args.g
 }
 
 const outData = {
     name: '',
     price: '',
-    link: '',
-    stockStatus: ''
+    link: `http://item.jd.com/${defaultInfo.goodId}.html`,
+    stockStatus: '',
+    time: ''
 }
 
 console.log()
@@ -49,23 +61,23 @@ requestScan().then(val => {
     return login(ticket)
 }).then(cookie => {
     console.log('   登录成功')
-    return goodInfo()
+    return goodInfo(defaultInfo.goodId)
 }).then(goodInfo => {
     const body = $.load(iconv.decode(goodInfo.data, 'gb2312'))
-    outData.name = body('div.sku-name').text()
-    return Promise.all([goodPrice(), goodStatus()])
+    outData.name = body('div.sku-name').text().trim()
+    return Promise.all([goodPrice(defaultInfo.goodId), goodStatus(defaultInfo.goodId, defaultInfo.areaId)])
 }).then(all => {
     outData.price = all[0][0].p
     outData.stockStatus = all[1]
-    console.log(`
-    商品详情------------------------------
+    outData.time = formatDate(new Date(), 'yyyy-MM-dd hh:mm:ss')
 
-    商品名：${outData.name}
-    价格：${outData.price}
-    状态：${outData.stockStatus}
-    连接：${outData.link}
-    -------------------------------------
-    `)
+    console.log()
+    console.log(`   商品详情------------------------------`)
+    console.log(`   时间：${outData.time}`)
+    console.log(`   商品名：${outData.name}`)
+    console.log(`   价格：${outData.price}`)
+    console.log(`   状态：${outData.stockStatus}`)
+    console.log(`   连接：${outData.link}`)
 })
 
 
@@ -151,13 +163,9 @@ function login(ticket) {
 }
 
 // 商品信息
-function goodInfo(areaId, stockId) {
-    const data = {
-        areaId: areaId || '2_2830_51810_0',
-        stockId: stockId || 5008395
-    }
+function goodInfo(goodId) {
 
-    const stockLink = `http://item.jd.com/${data.stockId}.html`
+    const stockLink = `http://item.jd.com/${goodId}.html`
 
     return request({
         method: 'get',
@@ -171,7 +179,6 @@ function goodInfo(areaId, stockId) {
 
 // 商品价格
 function goodPrice(stockId) {
-    stockId = stockId || 5008395
     return new Promise((resolve, reject) => {
         const callback = {}
         let name;
@@ -197,14 +204,12 @@ function goodPrice(stockId) {
 }
 
 // 商品状态
-function goodStatus(stockId, areaId) {
-    stockId = stockId || 5008395
-    arerId = areaId || '2_2830_51810_0'
+function goodStatus(goodId, areaId) {
     return new Promise((resolve, reject) => {
         const callback = {}
         let name;
         callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
-            resolve(data[stockId].StockStateName);
+            resolve(data[goodId].StockStateName);
         }
         request({
             method: 'get',
@@ -214,8 +219,8 @@ function goodStatus(stockId, areaId) {
             }),
             params: {
                 type: 'getstocks',
-                area: arerId,
-                skuIds: stockId,
+                area: areaId,
+                skuIds: goodId,
                 callback: name,
             },
             responseType: 'arraybuffer'
@@ -226,6 +231,7 @@ function goodStatus(stockId, areaId) {
     })
 }
 
+// cookie 解析
 function cookieParser(cookies) {
     const result = {}
     cookies.forEach(cookie => {
@@ -238,12 +244,37 @@ function cookieParser(cookies) {
     return result;
 }
 
+// 获取一个范围的随机数
 function getRandomInt(min, max) {
     min = Math.ceil(min)
     max = Math.floor(max)
     return Math.floor(Math.random() * (max - min)) + min
 }
 
-function jsonpParser(jsonp) {
-    const result = {}
+//格式化日期
+function formatDate(date, fmt) {
+    const o = {
+        "y+": date.getFullYear(),
+        "M+": date.getMonth() + 1, //月份
+        "d+": date.getDate(), //日
+        "h+": date.getHours(), //小时
+        "m+": date.getMinutes(), //分
+        "s+": date.getSeconds(), //秒
+        "q+": Math.floor((date.getMonth() + 3) / 3), //季度
+        "S+": date.getMilliseconds() //毫秒
+    };
+    for (let k in o) {
+        if (new RegExp("(" + k + ")").test(fmt)) {
+            if (k == "y+") {
+                fmt = fmt.replace(RegExp.$1, ("" + o[k]).substr(4 - RegExp.$1.length));
+            } else if (k == "S+") {
+                var lens = RegExp.$1.length;
+                lens = lens == 1 ? 3 : lens;
+                fmt = fmt.replace(RegExp.$1, ("00" + o[k]).substr(("" + o[k]).length - 1, lens));
+            } else {
+                fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
+            }
+        }
+    }
+    return fmt;
 }
