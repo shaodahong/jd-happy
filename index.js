@@ -1,9 +1,8 @@
-const http = require('http')
 const $ = require('cheerio')
 const request = require('axios')
 const fs = require('fs')
-const os = require('shelljs')
 const opn = require('opn')
+const iconv = require('iconv-lite')
 
 const defaultInfo = {
     header: {
@@ -29,9 +28,18 @@ const defaultInfo = {
     }
 }
 
+const outData = {
+    name: '',
+    price: '',
+    link: '',
+    stockStatus: ''
+}
+
+console.log()
 console.log('   -------------------------------------   ')
 console.log('                请求扫码')
 console.log('   -------------------------------------   ')
+console.log()
 
 
 
@@ -43,10 +51,23 @@ requestScan().then(val => {
     console.log('   登录成功')
     return goodInfo()
 }).then(goodInfo => {
-    const body = $.load(goodInfo.data)
-    const name = body('.sku-name').text()
-    console.log(`   ${name}`)
+    const body = $.load(iconv.decode(goodInfo.data, 'gb2312'))
+    outData.name = body('div.sku-name').text()
+    return Promise.all([goodPrice(), goodStatus()])
+}).then(all => {
+    outData.price = all[0][0].p
+    outData.stockStatus = all[1]
+    console.log(`
+    商品详情------------------------------
+
+    商品名：${outData.name}
+    价格：${outData.price}
+    状态：${outData.stockStatus}
+    连接：${outData.link}
+    -------------------------------------
+    `)
 })
+
 
 
 // 请求扫码
@@ -72,6 +93,7 @@ function requestScan() {
         })
 }
 
+// 监听扫码
 function listenScan() {
     return new Promise((resolve, reject) => {
         // 监听扫码结果
@@ -89,11 +111,11 @@ function listenScan() {
             request({
                 method: 'get',
                 url: defaultInfo.scanUrl,
-                headers: Object.assign(defaultInfo.header, {
+                headers: Object.assign({
                     Host: 'qr.m.jd.com',
                     Referer: 'https://passport.jd.com/new/login.aspx',
-                    cookie: defaultInfo.cookieData.join(';')
-                }),
+                    Cookie: defaultInfo.cookieData.join(';')
+                }, defaultInfo.header),
                 params: {
                     callback: name,
                     appid: 133,
@@ -109,15 +131,16 @@ function listenScan() {
     })
 }
 
+// 登录
 function login(ticket) {
     return request({
         method: 'get',
         url: defaultInfo.loginUrl,
-        headers: Object.assign(defaultInfo.header, {
+        headers: Object.assign({
             Host: 'passport.jd.com',
             Referer: 'https://passport.jd.com/uc/login?ltype=logout',
-            cookie: defaultInfo.cookieData.join(';')
-        }),
+            Cookie: defaultInfo.cookieData.join('')
+        }, defaultInfo.header),
         params: {
             t: ticket
         },
@@ -127,8 +150,7 @@ function login(ticket) {
     })
 }
 
-
-
+// 商品信息
 function goodInfo(areaId, stockId) {
     const data = {
         areaId: areaId || '2_2830_51810_0',
@@ -141,7 +163,65 @@ function goodInfo(areaId, stockId) {
         method: 'get',
         url: stockLink,
         headers: Object.assign(defaultInfo.header, {
-            cookie: defaultInfo.cookieData.join(';')
+            cookie: defaultInfo.cookieData.join('')
+        }),
+        responseType: 'arraybuffer'
+    })
+}
+
+// 商品价格
+function goodPrice(stockId) {
+    stockId = stockId || 5008395
+    return new Promise((resolve, reject) => {
+        const callback = {}
+        let name;
+        callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
+            resolve(data);
+        }
+        request({
+            method: 'get',
+            url: 'http://p.3.cn/prices/mgets',
+            headers: Object.assign(defaultInfo.header, {
+                cookie: defaultInfo.cookieData.join('')
+            }),
+            params: {
+                type: 1,
+                pduid: new Date().getTime(),
+                skuIds: 'J_' + stockId,
+                callback: name,
+            },
+        }).then(res => {
+            eval('callback.' + res.data)
+        })
+    })
+}
+
+// 商品状态
+function goodStatus(stockId, areaId) {
+    stockId = stockId || 5008395
+    arerId = areaId || '2_2830_51810_0'
+    return new Promise((resolve, reject) => {
+        const callback = {}
+        let name;
+        callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
+            resolve(data[stockId].StockStateName);
+        }
+        request({
+            method: 'get',
+            url: 'http://c0.3.cn/stocks',
+            headers: Object.assign(defaultInfo.header, {
+                cookie: defaultInfo.cookieData.join('')
+            }),
+            params: {
+                type: 'getstocks',
+                area: arerId,
+                skuIds: stockId,
+                callback: name,
+            },
+            responseType: 'arraybuffer'
+        }).then(res => {
+            const data = iconv.decode(res.data, 'gb2312')
+            eval('callback.' + data)
         })
     })
 }

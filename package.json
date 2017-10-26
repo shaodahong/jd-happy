@@ -13,8 +13,7 @@
   "dependencies": {
     "axios": "^0.17.0",
     "cheerio": "^1.0.0-rc.2",
-    "opn": "^5.1.0",
-    "shelljs": "^0.7.8",
-    "superagent": "^3.7.0"
+    "iconv-lite": "^0.4.19",
+    "opn": "^5.1.0"
   }
 }
