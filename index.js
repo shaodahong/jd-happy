@@ -41,6 +41,11 @@ requestScan().then(val => {
     return login(ticket)
 }).then(cookie => {
     console.log('   登录成功')
+    return goodInfo()
+}).then(goodInfo => {
+    const body = $.load(goodInfo.data)
+    const name = body('.sku-name').text()
+    console.log(`   ${name}`)
 })
 
 
@@ -96,7 +101,6 @@ function listenScan() {
                     _: new Date().getTime()
                 },
             }).then(res => {
-                console.log(res.headers['set-cookie'])
                 eval('callback.' + res.data)
             })
 
@@ -118,33 +122,29 @@ function login(ticket) {
             t: ticket
         },
     }).then(res => {
-        defaultInfo.header['p3p'] = es.headers['p3p']
+        defaultInfo.header['p3p'] = res.headers['p3p']
         return defaultInfo.cookieData = res.headers['set-cookie']
     })
 }
 
 
 
-// function goodInfo(areaId, stockId) {
-//     const data = {
-//         areaId: areaId || '2_2830_51810_0',
-//         stockId: stockId || 5008395
-//     }
+function goodInfo(areaId, stockId) {
+    const data = {
+        areaId: areaId || '2_2830_51810_0',
+        stockId: stockId || 5008395
+    }
 
-//     const stockLink = `http://item.jd.com/${data.stockId}.html`
+    const stockLink = `http://item.jd.com/${data.stockId}.html`
 
-//     request
-//         .get(stockLink)
-//         .set(defaultInfo.header)
-//         .set('Cookie', defaultInfo.cookieData.join(';'))
-//         .end((err, res) => {
-//             const tag = $.load(res.text)
-
-//             const name = tag('.sku-name').text()
-//             console.log(res)
-//         })
-
-// }
+    return request({
+        method: 'get',
+        url: stockLink,
+        headers: Object.assign(defaultInfo.header, {
+            cookie: defaultInfo.cookieData.join(';')
+        })
+    })
+}
 
 function cookieParser(cookies) {
     const result = {}
