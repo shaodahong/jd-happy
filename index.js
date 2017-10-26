@@ -1,20 +1,22 @@
 const http = require('http')
 const $ = require('cheerio')
-const request = require('superagent')
+const request = require('axios')
 const fs = require('fs')
 const os = require('shelljs')
 const opn = require('opn')
 
 const defaultInfo = {
     header: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36',
-        'ContentType': 'text/html; charset=utf-8',
-        'Accept-Encoding': 'gzip, deflate, sdch',
-        'Accept-Language': 'zh-CN,zh;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36',
+        'Content-Type': 'text/plain;charset=utf-8',
+        // 'accept':'image/webp,image/apng,image/*,*/*;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Language': 'zh-CN,zh;q=0.8,zh-TW;q=0.6,en;q=0.4,en-US;q=0.2',
         'Connection': 'keep-alive',
     },
     qrUrl: 'https://qr.m.jd.com/show',
     scanUrl: 'https://qr.m.jd.com/check',
+    loginUrl: 'https://passport.jd.com/uc/qrCodeTicketValidation',
     cookies: null,
     cookieData: null,
     getStockState(stockState) {
@@ -32,34 +34,37 @@ console.log('                请求扫码')
 console.log('   -------------------------------------   ')
 
 
-// requestScan().then(() => {
-//     return listenScan()
-// }).then(val => {
-//     console.log(val)
-// })
+
+requestScan().then(val => {
+    return listenScan()
+}).then(ticket => {
+    return login(ticket)
+}).then(cookie => {
+    console.log('   登录成功')
+})
 
 
 // 请求扫码
 function requestScan() {
-    return new Promise((resolve, reject) => {
-        request
-            .get(defaultInfo.qrUrl)
-            .set(defaultInfo.header)
-            .query({
+    return request({
+            method: 'get',
+            url: defaultInfo.qrUrl,
+            headers: defaultInfo.header,
+            params: {
                 appid: 133,
                 size: 147,
                 t: new Date().getTime()
+            },
+            responseType: 'arraybuffer'
+        })
+        .then(res => {
+            defaultInfo.cookies = cookieParser(res.headers['set-cookie'])
+            defaultInfo.cookieData = res.headers['set-cookie'];
+            const image_file = res.data;
+            fs.writeFile("./qr.png", image_file, 'binary', err => {
+                opn('qr.png')
             })
-            .end((err, res) => {
-                defaultInfo.cookies = cookieParser(res.header['set-cookie'])
-                defaultInfo.cookieData = res.header['set-cookie'];
-                const image_file = res.body
-                fs.writeFile("./qr.png", image_file, "binary", err => {
-                    opn('qr.png')
-                    resolve()
-                })
-            })
-    })
+        })
 }
 
 function listenScan() {
@@ -69,59 +74,77 @@ function listenScan() {
             const callback = {}
             let name;
             callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
+                console.log(`   ${data.msg || '扫码成功，正在登录'}`)
                 if (data.code === 200) {
                     clearInterval(timer)
-                    resolve(`   登录成功`)
-                    return
+                    resolve(data.ticket)
                 }
-                console.log(`   ${data.msg}`)
             }
 
-            request
-                .get(defaultInfo.scanUrl)
-                .set(defaultInfo.header)
-                .set({
+            request({
+                method: 'get',
+                url: defaultInfo.scanUrl,
+                headers: Object.assign(defaultInfo.header, {
                     Host: 'qr.m.jd.com',
-                    Referer: 'https://passport.jd.com/new/login.aspx'
-                })
-                .set('Cookie', defaultInfo.cookieData.join(';'))
-                .query({
+                    Referer: 'https://passport.jd.com/new/login.aspx',
+                    cookie: defaultInfo.cookieData.join(';')
+                }),
+                params: {
                     callback: name,
                     appid: 133,
                     token: defaultInfo.cookies['wlfstk_smdl'],
                     _: new Date().getTime()
-                })
-                .end((err, res) => {
-                    eval('callback.' + res.text)
-                })
+                },
+            }).then(res => {
+                console.log(res.headers['set-cookie'])
+                eval('callback.' + res.data)
+            })
 
 
         }, 1000)
     })
 }
 
-
-
-function goodInfo(areaId, stockId) {
-    const data = {
-        areaId: areaId || '2_2830_51810_0',
-        stockId: stockId || 5008395
-    }
-
-    const stockLink = `http://item.jd.com/${data.stockId}.html`
-
-    request
-        .get(stockLink)
-        .end((err, res) => {
-            const tag = $.load(res.text, {decodeEntities: false})
-
-            const name = tag('.sku-name').text()
-            console.log(name)
-        })
-
+function login(ticket) {
+    return request({
+        method: 'get',
+        url: defaultInfo.loginUrl,
+        headers: Object.assign(defaultInfo.header, {
+            Host: 'passport.jd.com',
+            Referer: 'https://passport.jd.com/uc/login?ltype=logout',
+            cookie: defaultInfo.cookieData.join(';')
+        }),
+        params: {
+            t: ticket
+        },
+    }).then(res => {
+        defaultInfo.header['p3p'] = es.headers['p3p']
+        return defaultInfo.cookieData = res.headers['set-cookie']
+    })
 }
 
-goodInfo()
+
+
+// function goodInfo(areaId, stockId) {
+//     const data = {
+//         areaId: areaId || '2_2830_51810_0',
+//         stockId: stockId || 5008395
+//     }
+
+//     const stockLink = `http://item.jd.com/${data.stockId}.html`
+
+//     request
+//         .get(stockLink)
+//         .set(defaultInfo.header)
+//         .set('Cookie', defaultInfo.cookieData.join(';'))
+//         .end((err, res) => {
+//             const tag = $.load(res.text)
+
+//             const name = tag('.sku-name').text()
+//             console.log(res)
+//         })
+
+// }
 
 function cookieParser(cookies) {
     const result = {}
