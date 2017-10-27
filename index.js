@@ -10,6 +10,12 @@ const args = require('yargs')
         demand: true,
         describe: '商品编号',
     })
+    .option('t', {
+        alias: 'time',
+        demand: true,
+        describe: '查询间隔ms',
+        default: '1000'
+    })
     .usage('Usage: node index.js -a 地区编号 -g 商品编号')
     .example('node index.js -a 2_2830_51810_0 -g 5008395')
     .argv;
@@ -36,7 +42,8 @@ const defaultInfo = {
     cookies: null,
     cookieData: null,
     areaId: args.a,
-    goodId: args.g
+    goodId: args.g,
+    time: args.t || 1000
 }
 
 const outData = {
@@ -61,23 +68,26 @@ requestScan().then(val => {
     return login(ticket)
 }).then(cookie => {
     console.log('   登录成功')
-    return goodInfo(defaultInfo.goodId)
-}).then(goodInfo => {
-    const body = $.load(iconv.decode(goodInfo.data, 'gb2312'))
-    outData.name = body('div.sku-name').text().trim()
-    return Promise.all([goodPrice(defaultInfo.goodId), goodStatus(defaultInfo.goodId, defaultInfo.areaId)])
-}).then(all => {
-    outData.price = all[0][0].p
-    outData.stockStatus = all[1]
-    outData.time = formatDate(new Date(), 'yyyy-MM-dd hh:mm:ss')
+    setInterval(() => {
+        goodInfo(defaultInfo.goodId).then(goodInfo => {
+            const body = $.load(iconv.decode(goodInfo.data, 'gb2312'))
+            outData.name = body('div.sku-name').text().trim()
+            return Promise.all([goodPrice(defaultInfo.goodId), goodStatus(defaultInfo.goodId, defaultInfo.areaId)])
+        }).then(all => {
+            outData.price = all[0][0].p
+            outData.stockStatus = all[1]
+            outData.time = formatDate(new Date(), 'yyyy-MM-dd hh:mm:ss')
 
-    console.log()
-    console.log(`   商品详情------------------------------`)
-    console.log(`   时间：${outData.time}`)
-    console.log(`   商品名：${outData.name}`)
-    console.log(`   价格：${outData.price}`)
-    console.log(`   状态：${outData.stockStatus}`)
-    console.log(`   连接：${outData.link}`)
+            console.log()
+            console.log(`   商品详情------------------------------`)
+            console.log(`   时间：${outData.time}`)
+            console.log(`   商品名：${outData.name}`)
+            console.log(`   价格：${outData.price}`)
+            console.log(`   状态：${outData.stockStatus}`)
+            console.log(`   连接：${outData.link}`)
+        })
+
+    }, defaultInfo.time)
 })
 
 
