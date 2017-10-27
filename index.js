@@ -1,5 +1,4 @@
-const args = require('yargs')
-    .alias('h', 'help')
+const args = require('yargs').alias('h', 'help')
     .option('a', {
         alias: 'area',
         demand: true,
@@ -14,13 +13,11 @@ const args = require('yargs')
         alias: 'time',
         demand: true,
         describe: '查询间隔ms',
-        default: '1000'
+        default: '10000'
     })
     .usage('Usage: node index.js -a 地区编号 -g 商品编号')
     .example('node index.js -a 2_2830_51810_0 -g 5008395')
     .argv;
-
-
 
 const $ = require('cheerio')
 const request = require('axios')
@@ -43,15 +40,18 @@ const defaultInfo = {
     cookieData: null,
     areaId: args.a,
     goodId: args.g,
-    time: args.t || 1000
+    time: args.t || 10000
 }
+
+console.log(defaultInfo)
 
 const outData = {
     name: '',
     price: '',
     link: `http://item.jd.com/${defaultInfo.goodId}.html`,
     stockStatus: '',
-    time: ''
+    time: '',
+    cartLink: ''
 }
 
 console.log()
@@ -68,29 +68,11 @@ requestScan().then(val => {
     return login(ticket)
 }).then(cookie => {
     console.log('   登录成功')
-    setInterval(() => {
-        goodInfo(defaultInfo.goodId).then(goodInfo => {
-            const body = $.load(iconv.decode(goodInfo.data, 'gb2312'))
-            outData.name = body('div.sku-name').text().trim()
-            return Promise.all([goodPrice(defaultInfo.goodId), goodStatus(defaultInfo.goodId, defaultInfo.areaId)])
-        }).then(all => {
-            outData.price = all[0][0].p
-            outData.stockStatus = all[1]
-            outData.time = formatDate(new Date(), 'yyyy-MM-dd hh:mm:ss')
-
-            console.log()
-            console.log(`   商品详情------------------------------`)
-            console.log(`   时间：${outData.time}`)
-            console.log(`   商品名：${outData.name}`)
-            console.log(`   价格：${outData.price}`)
-            console.log(`   状态：${outData.stockStatus}`)
-            console.log(`   连接：${outData.link}`)
-        })
-
+    runGoodSearch()
+    const timer = setInterval(() => {
+        runGoodSearch()
     }, defaultInfo.time)
 })
-
-
 
 // 请求扫码
 function requestScan() {
@@ -147,8 +129,6 @@ function listenScan() {
             }).then(res => {
                 eval('callback.' + res.data)
             })
-
-
         }, 1000)
     })
 }
@@ -208,7 +188,10 @@ function goodPrice(stockId) {
                 callback: name,
             },
         }).then(res => {
+            console.log('goodPrice:res', res);
             eval('callback.' + res.data)
+        }).catch(rej => {
+            console.log('goodPrice:rej', rej);
         })
     })
 }
@@ -219,7 +202,7 @@ function goodStatus(goodId, areaId) {
         const callback = {}
         let name;
         callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
-            resolve(data[goodId].StockStateName);
+            resolve(data[goodId]);
         }
         request({
             method: 'get',
@@ -235,10 +218,49 @@ function goodStatus(goodId, areaId) {
             },
             responseType: 'arraybuffer'
         }).then(res => {
+            console.log('goodStatus:res', res);
             const data = iconv.decode(res.data, 'gb2312')
             eval('callback.' + data)
+        }).catch(rej => {
+            console.log('goodStatus:rej', rej);
         })
     })
+}
+
+// 商品状态轮训
+function runGoodSearch() {
+    return goodInfo(defaultInfo.goodId).then(goodInfo => {
+        const body = $.load(iconv.decode(goodInfo.data, 'gb2312'))
+        outData.name = body('div.sku-name').text().trim()
+        outData.cartLink = body('a#InitCartUrl').attr('href')
+        return Promise.all([goodPrice(defaultInfo.goodId), goodStatus(defaultInfo.goodId, defaultInfo.areaId)])
+    }).then(all => {
+        console.log('all', all)
+        outData.price = all[0][0].p
+        outData.stockStatus = all[1]['StockStateName']
+        outData.time = formatDate(new Date(), 'yyyy-MM-dd hh:mm:ss')
+
+        console.log()
+        console.log(`   商品详情------------------------------`)
+        console.log(`   时间：${outData.time}`)
+        console.log(`   商品名：${outData.name}`)
+        console.log(`   价格：${outData.price}`)
+        console.log(`   状态：${outData.stockStatus}`)
+        console.log(`   商品连接：${outData.link}`)
+        console.log(`   购买连接：${outData.cartLink}`)
+
+        const statusCode = all[1]['StockState']
+        // 如果有货就下单
+        // 33 有货  34 无货
+        if (+statusCode === 33) {
+            clearInterval(timer);
+        }
+    })
+}
+
+// 下单
+function buy() {
+
 }
 
 // cookie 解析
