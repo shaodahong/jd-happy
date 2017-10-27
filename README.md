@@ -52,6 +52,7 @@ Usage: node index.js -a 地区编号 -g 商品编号
     -a, --area      地区编号        [必需]
     -g, --good      商品编号        [必需]
     -h, --help      显示帮助信息     [布尔]
+    -t, --time      查询间隔ms      [必需]    [默认值: "1000"]
 
 示例：
     node index.js -a 2_2830_51810_0 -g 5008395
