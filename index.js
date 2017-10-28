@@ -43,8 +43,6 @@ const defaultInfo = {
     time: args.t || 10000
 }
 
-console.log(defaultInfo)
-
 const outData = {
     name: '',
     price: '',
@@ -70,7 +68,7 @@ requestScan().then(val => {
     console.log('   登录成功')
     runGoodSearch()
     const timer = setInterval(() => {
-        runGoodSearch()
+        runGoodSearch(timer)
     }, defaultInfo.time)
 })
 
@@ -188,10 +186,8 @@ function goodPrice(stockId) {
                 callback: name,
             },
         }).then(res => {
-            console.log('goodPrice:res', res);
             eval('callback.' + res.data)
         }).catch(rej => {
-            console.log('goodPrice:rej', rej);
         })
     })
 }
@@ -218,24 +214,21 @@ function goodStatus(goodId, areaId) {
             },
             responseType: 'arraybuffer'
         }).then(res => {
-            console.log('goodStatus:res', res);
             const data = iconv.decode(res.data, 'gb2312')
             eval('callback.' + data)
         }).catch(rej => {
-            console.log('goodStatus:rej', rej);
         })
     })
 }
 
 // 商品状态轮训
-function runGoodSearch() {
+function runGoodSearch(timer) {
     return goodInfo(defaultInfo.goodId).then(goodInfo => {
         const body = $.load(iconv.decode(goodInfo.data, 'gb2312'))
         outData.name = body('div.sku-name').text().trim()
-        outData.cartLink = body('a#InitCartUrl').attr('href')
+        outData.cartLink = 'http:' + body('a#InitCartUrl').attr('href')
         return Promise.all([goodPrice(defaultInfo.goodId), goodStatus(defaultInfo.goodId, defaultInfo.areaId)])
     }).then(all => {
-        console.log('all', all)
         outData.price = all[0][0].p
         outData.stockStatus = all[1]['StockStateName']
         outData.time = formatDate(new Date(), 'yyyy-MM-dd hh:mm:ss')
