@@ -246,6 +246,7 @@ function runGoodSearch(timer) {
         // 如果有货就下单
         // 33 有货  34 无货
         if (+statusCode === 33) {
+            buy()
             clearInterval(timer);
         }
     })
@@ -253,7 +254,7 @@ function runGoodSearch(timer) {
 
 // 下单
 function buy() {
-
+    console.log('   加入购物车')
 }
 
 // cookie 解析
