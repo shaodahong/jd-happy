@@ -60,16 +60,15 @@ console.log()
 
 
 
-requestScan().then(val => {
+requestScan().then(() => {
     return listenScan()
 }).then(ticket => {
     return login(ticket)
-}).then(cookie => {
+}).then(() => {
     console.log('   登录成功')
-    runGoodSearch()
-    const timer = setInterval(() => {
-        runGoodSearch(timer)
-    }, defaultInfo.time)
+    return runGoodSearch()
+}).then(() => {
+    buy()
 })
 
 // 请求扫码
@@ -108,14 +107,13 @@ async function listenScan() {
     let flag = true
     let ticket
 
-    while (true) {
+    while (flag) {
         const callback = {}
         let name;
         callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
             console.log(`   ${data.msg || '扫码成功，正在登录'}`)
             if (data.code === 200) {
                 flag = false;
-                clearInterval(timer)
                 ticket = data.ticket
             }
         }
@@ -137,50 +135,15 @@ async function listenScan() {
         })
 
         eval('callback.' + result.data);
+        await sleep(1000)
     }
 
     return ticket
-
-
-    // return new Promise((resolve, reject) => {
-
-
-    //     // 监听扫码结果
-    //     const timer = setInterval(() => {
-    //         const callback = {}
-    //         let name;
-    //         callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
-    //             console.log(`   ${data.msg || '扫码成功，正在登录'}`)
-    //             if (data.code === 200) {
-    //                 clearInterval(timer)
-    //                 resolve(data.ticket)
-    //             }
-    //         }
-
-    //         request({
-    //             method: 'get',
-    //             url: defaultInfo.scanUrl,
-    //             headers: Object.assign({
-    //                 Host: 'qr.m.jd.com',
-    //                 Referer: 'https://passport.jd.com/new/login.aspx',
-    //                 Cookie: defaultInfo.cookieData.join(';')
-    //             }, defaultInfo.header),
-    //             params: {
-    //                 callback: name,
-    //                 appid: 133,
-    //                 token: defaultInfo.cookies['wlfstk_smdl'],
-    //                 _: new Date().getTime()
-    //             },
-    //         }).then(res => {
-    //             eval('callback.' + res.data)
-    //         })
-    //     }, 1000)
-    // })
 }
 
 // 登录
-function login(ticket) {
-    return request({
+async function login(ticket) {
+    const result = await request({
         method: 'get',
         url: defaultInfo.loginUrl,
         headers: Object.assign({
@@ -191,10 +154,10 @@ function login(ticket) {
         params: {
             t: ticket
         },
-    }).then(res => {
-        defaultInfo.header['p3p'] = res.headers['p3p']
-        return defaultInfo.cookieData = res.headers['set-cookie']
     })
+
+    defaultInfo.header['p3p'] = result.headers['p3p']
+    return defaultInfo.cookieData = result.headers['set-cookie']
 }
 
 // 商品信息
@@ -213,67 +176,80 @@ function goodInfo(goodId) {
 }
 
 // 商品价格
-function goodPrice(stockId) {
-    return new Promise((resolve, reject) => {
-        const callback = {}
-        let name;
-        callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
-            resolve(data);
-        }
-        request({
-            method: 'get',
-            url: 'http://p.3.cn/prices/mgets',
-            headers: Object.assign(defaultInfo.header, {
-                cookie: defaultInfo.cookieData.join('')
-            }),
-            params: {
-                type: 1,
-                pduid: new Date().getTime(),
-                skuIds: 'J_' + stockId,
-                callback: name,
-            },
-        }).then(res => {
-            eval('callback.' + res.data)
-        }).catch(rej => {})
+async function goodPrice(stockId) {
+    const callback = {}
+    let name;
+    let price;
+
+    callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
+        price = data
+    }
+
+    const result = await request({
+        method: 'get',
+        url: 'http://p.3.cn/prices/mgets',
+        headers: Object.assign(defaultInfo.header, {
+            cookie: defaultInfo.cookieData.join('')
+        }),
+        params: {
+            type: 1,
+            pduid: new Date().getTime(),
+            skuIds: 'J_' + stockId,
+            callback: name,
+        },
     })
+
+    eval('callback.' + result.data)
+
+    return price
 }
 
 // 商品状态
-function goodStatus(goodId, areaId) {
-    return new Promise((resolve, reject) => {
-        const callback = {}
-        let name;
-        callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
-            resolve(data[goodId]);
-        }
-        request({
-            method: 'get',
-            url: 'http://c0.3.cn/stocks',
-            headers: Object.assign(defaultInfo.header, {
-                cookie: defaultInfo.cookieData.join('')
-            }),
-            params: {
-                type: 'getstocks',
-                area: areaId,
-                skuIds: goodId,
-                callback: name,
-            },
-            responseType: 'arraybuffer'
-        }).then(res => {
-            const data = iconv.decode(res.data, 'gb2312')
-            eval('callback.' + data)
-        }).catch(rej => {})
+async function goodStatus(goodId, areaId) {
+    const callback = {}
+    let name;
+    let status
+
+    callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
+        status = data[goodId]
+    }
+
+    const result = await request({
+        method: 'get',
+        url: 'http://c0.3.cn/stocks',
+        headers: Object.assign(defaultInfo.header, {
+            cookie: defaultInfo.cookieData.join('')
+        }),
+        params: {
+            type: 'getstocks',
+            area: areaId,
+            skuIds: goodId,
+            callback: name,
+        },
+        responseType: 'arraybuffer'
     })
+
+    const data = iconv.decode(result.data, 'gb2312')
+    eval('callback.' + data)
+
+    return status
 }
 
 // 商品状态轮训
-function runGoodSearch(timer) {
-    return goodInfo(defaultInfo.goodId).then(goodInfo => {
-        const body = $.load(iconv.decode(goodInfo.data, 'gb2312'))
-        outData.name = body('div.sku-name').text().trim()
-        outData.cartLink = 'http:' + body('a#InitCartUrl').attr('href')
-        return Promise.all([goodPrice(defaultInfo.goodId), goodStatus(defaultInfo.goodId, defaultInfo.areaId)])
-    }).then(all => {
+async function runGoodSearch() {
+
+    let flag = true
+
+    while (flag) {
+        const result = await goodInfo(defaultInfo.goodId).then(goodInfo => {
+            const body = $.load(iconv.decode(goodInfo.data, 'gb2312'))
+            outData.name = body('div.sku-name').text().trim()
+            const cartLink = body('a#InitCartUrl').attr('href')
+            outData.cartLink = cartLink ? 'http:' + cartLink : '无购买链接'
+        })
+
+        const all = await Promise.all([goodPrice(defaultInfo.goodId), goodStatus(defaultInfo.goodId, defaultInfo.areaId)])
+
         outData.price = all[0][0].p
         outData.stockStatus = all[1]['StockStateName']
         outData.time = formatDate(new Date(), 'yyyy-MM-dd hh:mm:ss')
@@ -291,10 +267,10 @@ function runGoodSearch(timer) {
         // 如果有货就下单
         // 33 有货  34 无货
         if (+statusCode === 33) {
-            buy()
-            clearInterval(timer);
+            flag = false
         }
-    })
+        await sleep(defaultInfo.time)
+    }
 }
 
 // 下单
