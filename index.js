@@ -73,62 +73,109 @@ requestScan().then(val => {
 })
 
 // 请求扫码
-function requestScan() {
-    return request({
-            method: 'get',
-            url: defaultInfo.qrUrl,
-            headers: defaultInfo.header,
-            params: {
-                appid: 133,
-                size: 147,
-                t: new Date().getTime()
-            },
-            responseType: 'arraybuffer'
+async function requestScan() {
+    const result = await request({
+        method: 'get',
+        url: defaultInfo.qrUrl,
+        headers: defaultInfo.header,
+        params: {
+            appid: 133,
+            size: 147,
+            t: new Date().getTime()
+        },
+        responseType: 'arraybuffer'
+    })
+
+    defaultInfo.cookies = cookieParser(result.headers['set-cookie'])
+    defaultInfo.cookieData = result.headers['set-cookie'];
+    const image_file = result.data;
+
+    await writeFile('qr.png', image_file)
+}
+
+async function writeFile(fileName, file) {
+    return await new Promise((resolve, reject) => {
+        fs.writeFile(fileName, file, 'binary', err => {
+            opn('qr.png')
+            resolve()
         })
-        .then(res => {
-            defaultInfo.cookies = cookieParser(res.headers['set-cookie'])
-            defaultInfo.cookieData = res.headers['set-cookie'];
-            const image_file = res.data;
-            fs.writeFile("./qr.png", image_file, 'binary', err => {
-                opn('qr.png')
-            })
-        })
+    })
 }
 
 // 监听扫码
-function listenScan() {
-    return new Promise((resolve, reject) => {
-        // 监听扫码结果
-        const timer = setInterval(() => {
-            const callback = {}
-            let name;
-            callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
-                console.log(`   ${data.msg || '扫码成功，正在登录'}`)
-                if (data.code === 200) {
-                    clearInterval(timer)
-                    resolve(data.ticket)
-                }
-            }
+async function listenScan() {
 
-            request({
-                method: 'get',
-                url: defaultInfo.scanUrl,
-                headers: Object.assign({
-                    Host: 'qr.m.jd.com',
-                    Referer: 'https://passport.jd.com/new/login.aspx',
-                    Cookie: defaultInfo.cookieData.join(';')
-                }, defaultInfo.header),
-                params: {
-                    callback: name,
-                    appid: 133,
-                    token: defaultInfo.cookies['wlfstk_smdl'],
-                    _: new Date().getTime()
-                },
-            }).then(res => {
-                eval('callback.' + res.data)
-            })
-        }, 1000)
-    })
+    let flag = true
+    let ticket
+
+    while (true) {
+        const callback = {}
+        let name;
+        callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
+            console.log(`   ${data.msg || '扫码成功，正在登录'}`)
+            if (data.code === 200) {
+                flag = false;
+                clearInterval(timer)
+                ticket = data.ticket
+            }
+        }
+
+        const result = await request({
+            method: 'get',
+            url: defaultInfo.scanUrl,
+            headers: Object.assign({
+                Host: 'qr.m.jd.com',
+                Referer: 'https://passport.jd.com/new/login.aspx',
+                Cookie: defaultInfo.cookieData.join(';')
+            }, defaultInfo.header),
+            params: {
+                callback: name,
+                appid: 133,
+                token: defaultInfo.cookies['wlfstk_smdl'],
+                _: new Date().getTime()
+            },
+        })
+
+        eval('callback.' + result.data);
+    }
+
+    return ticket
+
+
+    // return new Promise((resolve, reject) => {
+
+
+    //     // 监听扫码结果
+    //     const timer = setInterval(() => {
+    //         const callback = {}
+    //         let name;
+    //         callback[name = ('jQuery' + getRandomInt(100000, 999999))] = data => {
+    //             console.log(`   ${data.msg || '扫码成功，正在登录'}`)
+    //             if (data.code === 200) {
+    //                 clearInterval(timer)
+    //                 resolve(data.ticket)
+    //             }
+    //         }
+
+    //         request({
+    //             method: 'get',
+    //             url: defaultInfo.scanUrl,
+    //             headers: Object.assign({
+    //                 Host: 'qr.m.jd.com',
+    //                 Referer: 'https://passport.jd.com/new/login.aspx',
+    //                 Cookie: defaultInfo.cookieData.join(';')
+    //             }, defaultInfo.header),
+    //             params: {
+    //                 callback: name,
+    //                 appid: 133,
+    //                 token: defaultInfo.cookies['wlfstk_smdl'],
+    //                 _: new Date().getTime()
+    //             },
+    //         }).then(res => {
+    //             eval('callback.' + res.data)
+    //         })
+    //     }, 1000)
+    // })
 }
 
 // 登录
@@ -187,8 +234,7 @@ function goodPrice(stockId) {
             },
         }).then(res => {
             eval('callback.' + res.data)
-        }).catch(rej => {
-        })
+        }).catch(rej => {})
     })
 }
 
@@ -216,8 +262,7 @@ function goodStatus(goodId, areaId) {
         }).then(res => {
             const data = iconv.decode(res.data, 'gb2312')
             eval('callback.' + data)
-        }).catch(rej => {
-        })
+        }).catch(rej => {})
     })
 }
 
@@ -303,4 +348,14 @@ function formatDate(date, fmt) {
         }
     }
     return fmt;
+}
+
+
+// 睡眠
+function sleep(ms) {
+    return new Promise((resolve, reject) => {
+        setTimeout(() => {
+            resolve()
+        }, ms)
+    })
 }
