@@ -24,6 +24,7 @@ const request = require('axios')
 const fs = require('fs')
 const opn = require('opn')
 const iconv = require('iconv-lite')
+const puppeteer = require('puppeteer')
 
 const defaultInfo = {
     header: {
@@ -40,7 +41,11 @@ const defaultInfo = {
     cookieData: null,
     areaId: args.a,
     goodId: args.g,
-    time: args.t || 10000
+    time: args.t || 10000,
+    token: '',
+    uuid: '',
+    eid: '',
+    fp: '',
 }
 
 const outData = {
@@ -58,18 +63,46 @@ console.log('                请求扫码')
 console.log('   -------------------------------------   ')
 console.log()
 
+puppeteer.launch().then(async browser => {
+    const page = await browser.newPage();
+    await page.goto('https://passport.jd.com/new/login.aspx');
+    const result = page.evaluate(res => {
+        return Promise.resolve(window)
+    })
+    console.log('result', result)
+  });
+
+// request({
+//     method: 'get',
+//     url: 'https://passport.jd.com/new/login.aspx',
+//     headers: defaultInfo.header,
+//     responseType: 'arraybuffer'
+// }).then(res => {
+//     const body = $.load(res.data)
+
+//     defaultInfo.token = body('#formlogin input[type=hidden]#token').attr('value');
+//     defaultInfo.uuid = body('#formlogin input[type=hidden]#uuid').attr('uuid');
+//     defaultInfo.eid = body('#formlogin input[type=hidden]#eid').attr('value');
+//     defaultInfo.fp = body('#formlogin input[type=hidden]#sessionId').attr('value');
+    
+//     console.log(defaultInfo, body('#formlogin input[type=hidden]#eid'))
+
+// })
 
 
-requestScan().then(() => {
-    return listenScan()
-}).then(ticket => {
-    return login(ticket)
-}).then(() => {
-    console.log('   登录成功')
-    return runGoodSearch()
-}).then(() => {
-    buy()
-})
+
+// requestScan().then(() => {
+//     return listenScan()
+// }).then(ticket => {
+//     return login(ticket)
+// }).then(() => {
+//     console.log('   登录成功')
+//     return runGoodSearch()
+// }).then(() => {
+//     return addCart()
+// }).then(() => {
+//     buy()
+// })
 
 // 请求扫码
 async function requestScan() {
@@ -265,14 +298,76 @@ async function runGoodSearch() {
         // 33 有货  34 无货
         if (+statusCode === 33) {
             flag = false
+        } else {
+            await sleep(defaultInfo.time)
         }
-        await sleep(defaultInfo.time)
     }
 }
 
-// 下单
-function buy() {
-    console.log('   加入购物车')
+// 加入购物车
+async function addCart() {
+    console.log()
+    console.log('   开始加入购物车')
+
+    const result = await request({
+        method: 'get',
+        url: outData.cartLink,
+        headers: Object.assign(defaultInfo.header, {
+            cookie: defaultInfo.cookieData.join('')
+        }),
+    })
+
+    const body = $.load(result.data)
+
+    const addCartResult = body('h3.ftx-02')
+
+    if (addCartResult) {
+        console.log(`    ${addCartResult.text()}`)
+    } else {
+        console.log('   添加购物车失败')
+    }
+}
+
+async function buy() {
+    // const result = await request({
+    //     method: 'post',
+    //     url: 'http://cart.jd.com/changeNum.action',
+    //     headers: Object.assign(defaultInfo.header, {
+    //         cookie: defaultInfo.cookieData.join('')
+    //     }),
+    //     params: {
+    //         'venderId': '8888',
+    //         'pid': defaultInfo.goodId,
+    //         'pcount': 1,
+    //         'ptype': '1',
+    //         'targetId': '0',
+    //         'promoID': '0',
+    //         'outSkus': '',
+    //         'random': Math.random(),
+    //         'locationId': defaultInfo.areaId,
+    //     },
+    // })
+
+    const result = await request({
+        method: 'post',
+        url: 'http://trade.jd.com/shopping/order/submitOrder.action',
+        headers: Object.assign(defaultInfo.header, {
+            cookie: defaultInfo.cookieData.join('')
+        }),
+        params: {
+            'overseaPurchaseCookies': '',
+            'submitOrderParam.btSupport': '1',
+            'submitOrderParam.ignorePriceChange': '0',
+            'submitOrderParam.sopNotPutInvoice': 'false',
+            'submitOrderParam.trackID': self.trackid,
+            'submitOrderParam.eid': self.eid,
+            'submitOrderParam.fp': self.fp,
+        },
+    })
+
+    console.log(b)
+
+
 }
 
 // cookie 解析
