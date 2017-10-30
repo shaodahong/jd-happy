@@ -241,15 +241,12 @@ async function runGoodSearch() {
     let flag = true
 
     while (flag) {
-        const result = await goodInfo(defaultInfo.goodId).then(goodInfo => {
-            const body = $.load(iconv.decode(goodInfo.data, 'gb2312'))
-            outData.name = body('div.sku-name').text().trim()
-            const cartLink = body('a#InitCartUrl').attr('href')
-            outData.cartLink = cartLink ? 'http:' + cartLink : '无购买链接'
-        })
+        const all = await Promise.all([goodPrice(defaultInfo.goodId), goodStatus(defaultInfo.goodId, defaultInfo.areaId), goodInfo(defaultInfo.goodId)])
 
-        const all = await Promise.all([goodPrice(defaultInfo.goodId), goodStatus(defaultInfo.goodId, defaultInfo.areaId)])
-
+        const body = $.load(iconv.decode(all[2].data, 'gb2312'))
+        outData.name = body('div.sku-name').text().trim()
+        const cartLink = body('a#InitCartUrl').attr('href')
+        outData.cartLink = cartLink ? 'http:' + cartLink : '无购买链接'
         outData.price = all[0][0].p
         outData.stockStatus = all[1]['StockStateName']
         outData.time = formatDate(new Date(), 'yyyy-MM-dd hh:mm:ss')
