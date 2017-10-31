@@ -383,6 +383,7 @@ async function buy() {
 
     if (result.data.success) {
         console.log(`   下单成功,订单号${result.data.orderId}`)
+        console.log('请千万京东商城及时付款，以免订单超时取消')
     }else {
         console.log(`   下单失败,${result.data.message}`)
     }
