@@ -47,7 +47,7 @@ const defaultInfo = {
     cookieData: null,
     areaId: args.a,
     goodId: args.g,
-    time: args.t || 10000,
+    time: +args.t || 10000,
     ticket: '',
     token: '',
     uuid: '',
