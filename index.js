@@ -58,51 +58,63 @@ const outData = {
 }
 
 console.log()
-console.log('   -------------------------------------   ')
-console.log('                请求扫码')
-console.log('   -------------------------------------   ')
-console.log()
-
+console.log('   正在初始化浏览器……')
 puppeteer.launch().then(async browser => {
+    console.log('   初始化完成，开始抓取页面')
     const page = await browser.newPage();
-    await page.goto('https://passport.jd.com/new/login.aspx');
-    const result = page.evaluate(res => {
-        return Promise.resolve(window)
+    await page.goto('https://passport.jd.com/new/login.aspx', {
+        waitUntil: 'networkidle'
+    });
+    await sleep(1000)
+    console.log('   页面抓取完成，开始分析页面')
+    const inputs = await page.evaluate(res => {
+        const result = document.querySelectorAll('input')
+        const data = {}
+
+        for (let v of result) {
+            switch (v.getAttribute('id')) {
+                case 'token':
+                    data.token = v.value
+                    break
+                case 'uuid':
+                    data.uuid = v.value
+                    break
+                case 'eid':
+                    data.eid = v.value
+                    break
+                case 'sessionId':
+                    data.fp = v.value
+                    break
+            }
+        }
+
+        return data
     })
-    console.log('result', result)
-  });
 
-// request({
-//     method: 'get',
-//     url: 'https://passport.jd.com/new/login.aspx',
-//     headers: defaultInfo.header,
-//     responseType: 'arraybuffer'
-// }).then(res => {
-//     const body = $.load(res.data)
+    Object.assign(defaultInfo, inputs)
+    await browser.close();
+    console.log('   页面参数到手，关闭浏览器')
 
-//     defaultInfo.token = body('#formlogin input[type=hidden]#token').attr('value');
-//     defaultInfo.uuid = body('#formlogin input[type=hidden]#uuid').attr('uuid');
-//     defaultInfo.eid = body('#formlogin input[type=hidden]#eid').attr('value');
-//     defaultInfo.fp = body('#formlogin input[type=hidden]#sessionId').attr('value');
+    console.log()
+    console.log('   -------------------------------------   ')
+    console.log('                请求扫码')
+    console.log('   -------------------------------------   ')
+    console.log()
     
-//     console.log(defaultInfo, body('#formlogin input[type=hidden]#eid'))
-
-// })
-
-
-
-// requestScan().then(() => {
-//     return listenScan()
-// }).then(ticket => {
-//     return login(ticket)
-// }).then(() => {
-//     console.log('   登录成功')
-//     return runGoodSearch()
-// }).then(() => {
-//     return addCart()
-// }).then(() => {
-//     buy()
-// })
+}).then(() => {
+    return requestScan()
+}).then(() => {
+    return listenScan()
+}).then(ticket => {
+    return login(ticket)
+}).then(() => {
+    console.log('   登录成功')
+    return runGoodSearch()
+}).then(() => {
+    return addCart()
+}).then(() => {
+    buy()
+})
 
 // 请求扫码
 async function requestScan() {
