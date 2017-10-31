@@ -1,3 +1,4 @@
+// 解析命令行参数
 const args = require('yargs').alias('h', 'help')
     .option('a', {
         alias: 'area',
@@ -11,9 +12,13 @@ const args = require('yargs').alias('h', 'help')
     })
     .option('t', {
         alias: 'time',
-        demand: true,
         describe: '查询间隔ms',
         default: '10000'
+    })
+    .option('b', {
+        alias: 'buy',
+        describe: '是否下单',
+        default: true
     })
     .usage('Usage: node index.js -a 地区编号 -g 商品编号')
     .example('node index.js -a 2_2830_51810_0 -g 5008395')
@@ -26,6 +31,7 @@ const opn = require('opn')
 const iconv = require('iconv-lite')
 const puppeteer = require('puppeteer')
 
+// 初始化默认的信息
 const defaultInfo = {
     header: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/61.0.3163.100 Safari/537.36',
@@ -49,6 +55,10 @@ const defaultInfo = {
     fp: '',
 }
 
+// 是否下单
+const isBuy = Boolean(args.b) || true
+
+// 初始化输出的商品信息
 const outData = {
     name: '',
     price: '',
@@ -115,7 +125,8 @@ puppeteer.launch().then(async browser => {
 }).then(() => {
     return addCart()
 }).then(() => {
-    return buy()
+    return isBuy ? buy() : ''
+
 })
 
 // 请求扫码
@@ -148,7 +159,7 @@ async function writeFile(fileName, file) {
     })
 }
 
-// 监听扫码
+// 监听扫码状态
 async function listenScan() {
 
     let flag = true
@@ -188,7 +199,7 @@ async function listenScan() {
     return ticket
 }
 
-// 登录
+// 开始登录
 async function login(ticket) {
     const result = await request({
         method: 'get',
@@ -282,7 +293,7 @@ async function goodStatus(goodId, areaId) {
     return status
 }
 
-// 商品状态轮训
+// 无货商品状态轮训
 async function runGoodSearch() {
 
     let flag = true
@@ -342,6 +353,7 @@ async function addCart() {
     }
 }
 
+// 下单
 async function buy() {
     const orderInfo = await request({
         method: 'get',
@@ -389,7 +401,7 @@ async function buy() {
     if (result.data.success) {
         console.log(`   下单成功,订单号${result.data.orderId}`)
         console.log('请前往京东商城及时付款，以免订单超时取消')
-    }else {
+    } else {
         console.log(`   下单失败,${result.data.message}`)
     }
 }
@@ -443,7 +455,7 @@ function formatDate(date, fmt) {
 }
 
 
-// 睡眠
+// 睡眠，比setTimeout好，防止网络条件不好造成多次请求
 function sleep(ms) {
     return new Promise((resolve, reject) => {
         setTimeout(() => {
