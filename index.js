@@ -42,6 +42,7 @@ const defaultInfo = {
     areaId: args.a,
     goodId: args.g,
     time: args.t || 10000,
+    ticket: '',
     token: '',
     uuid: '',
     eid: '',
@@ -106,6 +107,7 @@ puppeteer.launch().then(async browser => {
 }).then(() => {
     return listenScan()
 }).then(ticket => {
+    defaultInfo.trackid = ticket
     return login(ticket)
 }).then(() => {
     console.log('   登录成功')
@@ -113,7 +115,9 @@ puppeteer.launch().then(async browser => {
 }).then(() => {
     return addCart()
 }).then(() => {
-    buy()
+    console.log()
+    console.log('   开始下单……')
+    return buy()
 })
 
 // 请求扫码
@@ -334,7 +338,7 @@ async function addCart() {
     const addCartResult = body('h3.ftx-02')
 
     if (addCartResult) {
-        console.log(`    ${addCartResult.text()}`)
+        console.log(`   ${addCartResult.text()}`)
     } else {
         console.log('   添加购物车失败')
     }
@@ -371,15 +375,17 @@ async function buy() {
             'submitOrderParam.btSupport': '1',
             'submitOrderParam.ignorePriceChange': '0',
             'submitOrderParam.sopNotPutInvoice': 'false',
-            'submitOrderParam.trackID': self.trackid,
-            'submitOrderParam.eid': self.eid,
-            'submitOrderParam.fp': self.fp,
+            'submitOrderParam.trackID': defaultInfo.ticket,
+            'submitOrderParam.eid': defaultInfo.eid,
+            'submitOrderParam.fp': defaultInfo.fp,
         },
     })
 
-    console.log(b)
-
-
+    if (result.data.success) {
+        console.log(`   下单成功,订单号${result.data.orderId}`)
+    }else {
+        console.log(`   下单失败,${result.data.message}`)
+    }
 }
 
 // cookie 解析
