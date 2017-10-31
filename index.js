@@ -101,7 +101,7 @@ puppeteer.launch().then(async browser => {
     console.log('                请求扫码')
     console.log('   -------------------------------------   ')
     console.log()
-    
+
 }).then(() => {
     return requestScan()
 }).then(() => {
@@ -115,8 +115,6 @@ puppeteer.launch().then(async browser => {
 }).then(() => {
     return addCart()
 }).then(() => {
-    console.log()
-    console.log('   开始下单……')
     return buy()
 })
 
@@ -345,24 +343,31 @@ async function addCart() {
 }
 
 async function buy() {
-    // const result = await request({
-    //     method: 'post',
-    //     url: 'http://cart.jd.com/changeNum.action',
-    //     headers: Object.assign(defaultInfo.header, {
-    //         cookie: defaultInfo.cookieData.join('')
-    //     }),
-    //     params: {
-    //         'venderId': '8888',
-    //         'pid': defaultInfo.goodId,
-    //         'pcount': 1,
-    //         'ptype': '1',
-    //         'targetId': '0',
-    //         'promoID': '0',
-    //         'outSkus': '',
-    //         'random': Math.random(),
-    //         'locationId': defaultInfo.areaId,
-    //     },
-    // })
+    const orderInfo = await request({
+        method: 'get',
+        url: 'http://trade.jd.com/shopping/order/getOrderInfo.action',
+        headers: Object.assign(defaultInfo.header, {
+            cookie: defaultInfo.cookieData.join('')
+        }),
+        params: {
+            rid: new Date().getTime(),
+        },
+        responseType: 'arraybuffer'
+    })
+
+    const body = $.load(orderInfo.data)
+    const payment = body('span#sumPayPriceId').text().trim()
+    const sendAddr = body('span#sendAddr').text().trim()
+    const sendMobile = body('span#sendMobile').text().trim()
+
+    console.log()
+    console.log(`   订单详情------------------------------`)
+    console.log(`   订单总金额：${payment}`)
+    console.log(`   ${sendAddr}`)
+    console.log(`   ${sendMobile}`)
+    console.log()
+
+    console.log('   开始下单')
 
     const result = await request({
         method: 'post',
