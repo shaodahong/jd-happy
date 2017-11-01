@@ -56,7 +56,7 @@ const defaultInfo = {
 }
 
 // 是否下单
-const isBuy = Boolean(args.b) || true
+const isBuy = args.b === 'false' ? false : true
 
 // 初始化输出的商品信息
 const outData = {
