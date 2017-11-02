@@ -1,5 +1,9 @@
 <h1 align="center">JD-HAPPY<h1>
 
+<p align="center">
+<img src="./jd-happy.gif"/>
+</p>
+
 ## 注意
 1. node 版本需要支持 `async/await` 或者使用 ` --harmony` 来支持
 2. 代码暂未处理错误，只保证在正常的环境下运行
