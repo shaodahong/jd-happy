@@ -124,9 +124,8 @@ puppeteer.launch().then(async browser => {
     return runGoodSearch()
 }).then(() => {
     return addCart()
-}).then(() => {
-    return isBuy ? buy() : ''
-
+}).then((value) => {
+    if (value) return isBuy ? buy() : ''
 })
 
 // 请求扫码
@@ -344,12 +343,15 @@ async function addCart() {
 
     const body = $.load(result.data)
 
-    const addCartResult = body('h3.ftx-02')
+    const addCartResult = body('h3.ftx-02').text()
+
 
     if (addCartResult) {
-        console.log(`   ${addCartResult.text()}`)
+        console.log(`   ${addCartResult}`)
+        return true
     } else {
         console.log('   添加购物车失败')
+        return false
     }
 }
 
