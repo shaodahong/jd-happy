@@ -1,9 +1,5 @@
 <h1 align="center">JD-HAPPY<h1>
 
-<p align="center">
-<img src="./jd-happy.gif"/>
-</p>
-
 ### 前言
 
 代码实现基于[jd-autobuy](https://github.com/Adyzng/jd-autobuy)
@@ -70,6 +66,10 @@ $ yarn
 
 $ yarn start -a 2_2830_51810_0 -g 5008395
 ```
+
+<p align="center">
+<img src="./jd-happy.gif" width="80%"/>
+</p>
 
 ### 帮助
 
