@@ -444,5 +444,8 @@ puppeteer
     if (value) return isBuy ? buy() : "";
   })
   .catch(error => {
+    if (!error) {
+      return process.exit(-1);
+    }
     console.error(error);
   });
