@@ -1,5 +1,7 @@
 <h1 align="center">JD-HAPPY<h1>
 
+> 部分接口已过期
+
 ### 前言
 
 代码实现基于[jd-autobuy](https://github.com/Adyzng/jd-autobuy)
