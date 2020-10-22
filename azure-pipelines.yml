@@ -15,5 +15,5 @@ steps:
     versionSpec: '10.x'
   displayName: 'Install Node.js'
 
-- script: echo $(ARGOS_TOKEN)
+- script: echo $(ARGOS_TOEN)
   displayName: 'npm install and build'
