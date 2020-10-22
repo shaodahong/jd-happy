@@ -15,5 +15,5 @@ steps:
     versionSpec: '10.x'
   displayName: 'Install Node.js'
 
-- script: npm run argos -- --token $(ARGOS_TOKE) --branch $(Build.SourceBranch) --commit $(Build.SourceVersion)
+- script: npm run argos --token $(ARGOS_TOKE) --branch $(Build.SourceBranch) --commit $(Build.SourceVersion)
   displayName: 'npm install and build'
