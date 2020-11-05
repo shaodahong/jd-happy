@@ -17,5 +17,5 @@ steps:
   inputs:
     versionSpec: '10.x'
   displayName: 'Install Node.js'
-- script: yarn add argos-cli && yarn argos upload snap --token $(ARGOSTOKEN) --branch $(Build.SourceBranch) --commit $(Build.SourceVersion)
+- script: yarn add argos-cli && yarn argos upload snap --batchCount 5 --token $(ARGOSTOKEN) --branch $(Build.SourceBranch) --commit $(Build.SourceVersion)
   displayName: 'npm install and build'
